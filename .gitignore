@@ -28,9 +28,12 @@ runs/
 wandb/
 *.usdc
 *.usdz
-# generated media
+# generated media (except the README gallery in docs/media/)
 *.mp4
 *.gif
+!docs/media/*.gif
+!docs/media/*.webp
+!docs/media/*.png
 
 # Reference diagrams & internal docs — keep local only, out of the repo
 docs/*.svg

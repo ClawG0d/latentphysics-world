@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/media/hero.png" width="820" alt="Latent Physics World — real runs on one consumer GPU"/>
+
 # Latent Physics World
 
 ### The world engine for physical intelligence.
@@ -87,6 +89,19 @@ obs = scene.qpos()        # zero-copy PyTorch tensor, ready to train on
 
 *Getting started, platform requirements (Linux / NVIDIA CUDA), and the full
 API live in [`docs/`](docs/).*
+
+## Gallery — real runs, real numbers
+
+Every clip below is an actual simulation from this repo, on a single RTX
+5070 Ti. Nothing staged, nothing rendered offline.
+*每段动图都是本仓库在单张消费级 GPU 上的真实运行,无摆拍。*
+
+| | | |
+|---|---|---|
+| **Trained policy — 100% success** PPO on 2048 parallel worlds; deterministic eval 100%. *PPO 策略,确定性评估 100% 成功* ([train](examples/train_franka_reach.py)) | **Procedural indoor worlds** seeded rooms: walls, furniture, clutter, cameras. *程序化室内场景(可复现)* ([code](latentphysics/assets/scene_gen.py)) | **Asset pipeline** concave mesh → CoACD convex parts → simulation. *凹网格→凸分解→仿真* ([code](latentphysics/assets/__init__.py)) |
+| <img src="docs/media/policy_reach.webp" width="240"/> | <img src="docs/media/procedural_room.webp" width="240"/> | <img src="docs/media/convex_decomposition.webp" width="240"/> |
+| **GPU depth + segmentation** native batch renderer, meters-true depth. *批量深度+分割(米制)* ([code](latentphysics/perception/camera.py)) | **Batched LiDAR** 5,760 beams × N worlds in one launch → point clouds. *批量激光雷达点云* ([code](latentphysics/perception/lidar.py)) | **~5M physics steps/s** 8192 contact-accurate worlds on one GPU; contact forces match the reference engine to 0.00%. *单卡 8192 世界,约每秒五百万物理步* ([test](tests/test_envs_gpu.py)) |
+| <img src="docs/media/depth_segmentation.webp" width="240"/> | <img src="docs/media/lidar_pointcloud.webp" width="240"/> | <img src="docs/media/hero.png" width="240"/> |
 
 ## Roadmap — from one precise arm to self-improving physical AI
 
