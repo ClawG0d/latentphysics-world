@@ -71,10 +71,10 @@ physics and the indoor asset pipeline are **verified on real GPU hardware**
 
 | | Today · 今天 | Next · 下一步 |
 |---|---|---|
-| Physics | contact-accurate rigid bodies · thousands of parallel worlds | soft bodies · cloth · fluids |
+| Physics | contact-accurate rigid bodies · **~5M physics steps/s** on one consumer GPU (8192 parallel worlds, robot-arm scene) · contact forces match the reference CPU engine to **0.00%** | soft bodies · cloth · fluids |
 | Scenes | mesh → convex decomposition → simulatable geometry · GPU SDF voxelization | full indoor scenes from 3D datasets |
-| Learning | zero-copy PyTorch state, fully batched | vectorized RL env layer |
-| Perception & sim-to-real | *in design* | LiDAR · depth · segmentation · domain randomization + calibration |
+| Learning | vectorized RL envs, zero-copy PyTorch, GPU-resident auto-reset · world-state snapshot / branch / restore | PPO baselines · domain randomization |
+| Perception & sim-to-real | *in design* | LiDAR · depth · segmentation · real-robot calibration |
 
 ```python
 import latentphysics as lpw
@@ -87,6 +87,23 @@ obs = scene.qpos()        # zero-copy PyTorch tensor, ready to train on
 
 *Getting started, platform requirements (Linux / NVIDIA CUDA), and the full
 API live in [`docs/`](docs/).*
+
+## Roadmap — from one precise arm to self-improving physical AI
+
+The destination is a closed loop: models improve in the world, and the world
+improves from reality. Each stage is a shippable capability on that path.
+
+> **路线图——从一只精确的机械臂,到自我改进的物理智能。** 终点是一个闭环:
+> 模型在世界中变强,世界从现实中变准。每一阶段都是通往终点的可交付能力。
+
+| Stage | | Milestone · 里程碑 |
+|---|---|---|
+| **R0 · Engine core** | ✅ | Contact-accurate GPU physics + asset pipeline, verified on real hardware. 接触精确的 GPU 物理与资产管线,真实硬件验证。 |
+| **R1 · Precision manipulation** | ▶ | Robot-arm manipulation trained end-to-end: vectorized envs, reference-engine fidelity gate, physics sentinels, RL baselines. 机械臂操作端到端训练:向量化环境、保真基准、物理哨兵、RL 基线。 |
+| **R2 · Worlds & perception at scale** | | Procedural indoor scenes; depth, segmentation, LiDAR; an auto-verified manipulation benchmark suite at millions of steps/s. 程序化室内场景与多模感知,数百万步/秒的自动验证任务基准。 |
+| **R3 · The self-improving simulator** | | Real-robot calibration and learned residual dynamics — physics refined in latent space from deployment data. The loop starts running both ways. 真机标定 + 残差学习动力学:用真实数据在潜空间中修准物理,双向闭环启动。 |
+| **R4 · RSI infrastructure** | | Automatic task generation with verifiable rewards, curriculum engines, world-state branching and deterministic replay, anti-exploit guards, trajectory data engine. 自动任务生成与可验证奖励、课程引擎、世界状态分支与确定性重放、反作弊防线、数据引擎。 |
+| **R5 · The closed loop** | | Generation-over-generation improvement of physical foundation models at fleet scale — the substrate where physical intelligence compounds. 物理大模型的代际复利改进——物理智能在这里滚雪球。 |
 
 ## Acknowledgements — we stand on open foundations
 
