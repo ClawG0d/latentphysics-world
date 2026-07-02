@@ -47,6 +47,8 @@ def test_room_masks_prune_static_pairs(room):
 
 
 def test_lidar_scan(scene):
+    scene.reset()
+    scene.step(30)  # decouple from whatever other tests did to shared state
     lidar = Lidar(scene, origin=(0.0, 0.0, 0.8),
                   cfg=LidarConfig(channels=8, h_res=90))
     out = lidar.scan()
