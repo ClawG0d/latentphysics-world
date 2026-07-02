@@ -1,0 +1,109 @@
+<div align="center">
+
+# Latent Physics World
+
+### The world engine for physical intelligence.
+### 物理智能的世界引擎 · 物理大模型的基座。
+
+Robots learn to touch, grasp, and move through the human world —
+thousands of parallel lifetimes at a time — before they ever step into ours.
+The substrate for **physical foundation models**.
+
+*让机器人在踏入现实之前,先在成千上万个并行的物理世界里,学会触碰、抓取与穿行。*
+*—— 训练**物理大模型**的基座。*
+
+</div>
+
+---
+
+## The bottleneck to physical intelligence isn't the brain — it's the world.
+
+Foundation models can already reason, plan, and speak. What they cannot do is
+*act* — because acting in the physical world takes billions of contact-rich
+interactions to learn, and the real world does not scale. It cannot be reset,
+it cannot be parallelized, and every failure has a cost. A robot cannot learn
+to load a dishwasher by breaking ten thousand of them.
+
+Simulation is the only path to physical intelligence at scale — **but only if
+it is contact-accurate, massively parallel, and transferable to reality.** And
+the environment that matters most is also the hardest: the cluttered, contact-
+dense **human indoor world**, where robots must both manipulate and navigate.
+
+> **物理智能的瓶颈不是大脑,是世界。** 大模型已经会推理、规划、对话,唯独不会*行动*——
+> 因为在物理世界中行动,需要以亿计的接触交互去学习,而真实世界无法扩展、不能重置、
+> 每次失败都有代价。通往规模化物理智能的唯一路径是仿真——**前提是它接触精确、能大规模
+> 并行、且能迁移回真机。** 而最有价值也最难的环境,正是杂乱、接触密集的**人类室内世界**:
+> 机器人要在其中同时完成操作与导航。
+
+## What we are building
+
+**Latent Physics World (LPW)** is a GPU-native world engine where thousands of
+physical worlds run in parallel, contact-accurate, on a single accelerator.
+Robots are born here, fail here, and grow here — and the skills they learn
+transfer to real hardware. It is the substrate on which **physical foundation
+models** are trained — physics learned and rolled out in latent space, at scale.
+
+Not a viewer of the world. An engine that *runs* it.
+
+> **Latent Physics World(LPW)** 是一个 GPU 原生的世界引擎:单张加速卡上,成千上万个
+> 物理世界并行运行、接触精确。机器人在这里出生、试错、成长,学到的技能可迁移到真实硬件。
+> 它是训练**物理大模型**的基座——把物理放进**潜空间**去学习与推演,并可大规模并行;
+> 不是世界的观察者,而是*运行*世界的引擎。
+
+## What makes it different
+
+| | Pillar | 支柱 |
+|---|---|---|
+| **⚡** | **Contact-accurate physics at scale** — thousands of parallel worlds on one GPU, with production-grade contact and friction. | 数千并行世界的接触精确物理 |
+| **🏠** | **Indoor worlds on demand** — a pipeline that turns raw 3D assets into simulatable, collision-ready worlds. | 按需生成的室内世界(资产管线) |
+| **👁** | **Multi-modal perception** — LiDAR, depth, and segmentation, GPU-batched across every world. | 多模感知(LiDAR·深度·分割) |
+| **🎯** | **Sim-to-real** — domain randomization and calibration built to close the reality gap. | sim-to-real(域随机化 + 标定) |
+| **🧠** | **Learning-native** — zero-copy PyTorch tensors, fully batched; the simulator speaks the language of the models it trains. | 面向学习(torch·批量·零拷贝) |
+
+## Status
+
+LPW is early and moving fast — and it already runs. Contact-accurate rigid-body
+physics and the indoor asset pipeline are **verified on real GPU hardware**
+(NVIDIA RTX 50-series), batched to thousands of worlds.
+
+> LPW 尚处早期、推进很快——但**已经能跑**:接触精确的刚体物理与室内资产管线,
+> 已在真实 GPU(NVIDIA RTX 50 系)上验证,可批量到数千并行世界。
+
+| | Today · 今天 | Next · 下一步 |
+|---|---|---|
+| Physics | contact-accurate rigid bodies · thousands of parallel worlds | soft bodies · cloth · fluids |
+| Scenes | mesh → convex decomposition → simulatable geometry · GPU SDF voxelization | full indoor scenes from 3D datasets |
+| Learning | zero-copy PyTorch state, fully batched | vectorized RL env layer |
+| Perception & sim-to-real | *in design* | LiDAR · depth · segmentation · domain randomization + calibration |
+
+```python
+import latentphysics as lpw
+
+scene = lpw.load_scene("scenes/kitchen.xml", lpw.Config(n_worlds=4096))
+for _ in range(1000):
+    scene.step()          # thousands of worlds, one GPU, contact-accurate
+obs = scene.qpos()        # zero-copy PyTorch tensor, ready to train on
+```
+
+*Getting started, platform requirements (Linux / NVIDIA CUDA), and the full
+API live in [`docs/`](docs/).*
+
+## Acknowledgements — we stand on open foundations
+
+LPW's physics core is built on the shoulders of open research and open source.
+We gratefully build on and depend upon [MuJoCo](https://github.com/google-deepmind/mujoco)
+and [mujoco_warp](https://github.com/google-deepmind/mujoco_warp) (Apache-2.0),
+[NVIDIA Warp](https://github.com/NVIDIA/warp), and [PyTorch](https://pytorch.org).
+Full attribution is in [`NOTICE`](NOTICE) and [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+
+> LPW 的物理内核站在开放研究与开源社区的肩膀上,谨致谢并依赖上述项目;完整署名见 `NOTICE`。
+
+---
+
+<div align="center">
+
+**Building the world where physical intelligence is born.**
+
+Partnerships & inquiries — [team@ora.io](mailto:team@ora.io)
+
+</div>

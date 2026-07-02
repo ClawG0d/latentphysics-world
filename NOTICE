@@ -1,0 +1,24 @@
+Latent Physics World
+Copyright (c) 2026 <COPYRIGHT HOLDER>. All rights reserved.
+
+This product includes third-party open-source software. The following notices
+are provided for attribution as required by the respective licenses. See
+THIRD_PARTY_NOTICES.md for the full per-component license list.
+
+-------------------------------------------------------------------------------
+mujoco_warp
+Copyright (c) The Newton Developers
+Licensed under the Apache License, Version 2.0.
+
+MuJoCo
+Copyright (c) Google DeepMind
+Licensed under the Apache License, Version 2.0.
+
+NVIDIA Warp (warp-lang)
+Copyright (c) NVIDIA Corporation
+Licensed under the Apache License, Version 2.0.
+-------------------------------------------------------------------------------
+
+Modifications to any of the above components made by this project are marked in
+the respective source files with a "Modified by Latent Physics World" notice,
+as required by Section 4(b) of the Apache License, Version 2.0.

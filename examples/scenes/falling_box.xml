@@ -1,0 +1,10 @@
+<mujoco model="falling_box">
+  <option timestep="0.005"/>
+  <worldbody>
+    <geom name="floor" type="plane" size="5 5 0.1"/>
+    <body name="box" pos="0 0 1.0">
+      <freejoint/>
+      <geom name="box" type="box" size="0.1 0.1 0.1" mass="1"/>
+    </body>
+  </worldbody>
+</mujoco>

@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# Tooling
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Runtime / artifacts
+*.log
+outputs/
+runs/
+wandb/
+*.usdc
+*.usdz
+# generated media
+*.mp4
+*.gif
+
+# Reference diagrams & internal docs — keep local only, out of the repo
+docs/*.svg
+docs/PLAN.md
+docs/MUJOCO_WARP_FORK_READINESS.md

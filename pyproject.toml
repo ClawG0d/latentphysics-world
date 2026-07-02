@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "latentphysics-world"
+version = "0.0.1"
+description = "High-performance indoor robot simulation platform for contact-rich manipulation and sim-to-real"
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+# Proprietary — see LICENSE.
+dependencies = [
+    "numpy>=1.24",
+    # MuJoCo model compilation / MJCF parsing / CPU reference (Apache-2.0)
+    "mujoco>=3.2.0",
+]
+
+[project.optional-dependencies]
+# GPU physics engine — Linux + NVIDIA CUDA only (Warp has no Windows CUDA backend).
+gpu = [
+    "warp-lang>=1.5.0",
+    # mujoco_warp: pinned; see THIRD_PARTY_NOTICES.md. Installed from our fork / mujoco-mjx[warp].
+    # "mujoco-mjx[warp]",
+]
+# ML / RL training interop
+train = [
+    "torch>=2.2",
+]
+# Asset pipeline: USD/GLB import + convex decomposition
+assets = [
+    "trimesh>=4.0",
+    "coacd",           # convex decomposition of furniture meshes
+]
+dev = [
+    "pytest",
+    "pip-licenses",    # P0 license-scan gate
+    "ruff",
+]
+
+[tool.setuptools.packages.find]
+include = ["latentphysics", "latentphysics.*"]
+
+[tool.ruff]
+line-length = 100
