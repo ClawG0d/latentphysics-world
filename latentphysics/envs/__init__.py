@@ -14,8 +14,11 @@ Manager-based composition (obs/reward/termination managers, mjlab-style)
 lands in R4; R1 keeps a lean subclass API (VecTask hooks).
 """
 
+from .articulated_tasks import ART_SPECS, ArticulatedOpen, build_articulated_scene
+from .articulated_tasks import make as make_articulated
 from .base import TaskConfig, VecTask
 from .franka_reach import FrankaReach
 from .sentinels import PhysicsSentinel, SentinelConfig
 
-__all__ = ["TaskConfig", "VecTask", "FrankaReach", "PhysicsSentinel", "SentinelConfig"]
+__all__ = ["TaskConfig", "VecTask", "FrankaReach", "PhysicsSentinel", "SentinelConfig",
+           "ArticulatedOpen", "ART_SPECS", "build_articulated_scene", "make_articulated"]
