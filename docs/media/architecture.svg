@@ -4,7 +4,7 @@
 </defs>
 <rect width="900" height="690" fill="#ffffff"/>
 
-<text x="450" y="20" text-anchor="middle" font-size="12" fill="#9ca3af">what you build</text>
+<text x="450" y="20" text-anchor="middle" font-size="12" fill="#9ca3af">Application</text>
 <g fill="#ffffff" stroke="#d1d5db">
 <rect x="126" y="28" width="200" height="40" rx="9"/>
 <rect x="350" y="28" width="200" height="40" rx="9"/>
