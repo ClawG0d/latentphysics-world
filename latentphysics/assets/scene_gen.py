@@ -267,7 +267,99 @@ def _art_drawer_chest(rng, i, pos, sz, h, F, D, room_half):
     return [xml], len(g) + 6
 
 
-_ART_ARCHETYPES = (_art_hinged_cabinet, _art_drawer_chest)
+def _art_lid_chest(rng, i, pos, sz, h, F, D, room_half):
+    """Storage chest with a top lid on a horizontal hinge (lifts open).
+
+    Unlike the vertical-hinge door, the lid is gravity-loaded: released, it
+    falls shut. Opening needs vertical headroom but almost no floor footprint,
+    so it places easily (small reach zone).
+    """
+    wood = _WOODS[rng.integers(len(_WOODS))]
+    dark = _jit(rng, tuple(v * 0.6 for v in wood))
+    c = _jit(rng, wood)
+    q, along_x = _facing_quat(pos, room_half)
+    dx = sz[0] if along_x else sz[1]
+    dy = sz[1] if along_x else sz[0]
+    dx, dy = min(max(dx, 0.22), 0.5), min(max(dy, 0.30), 0.6)
+    h = min(max(h, 0.4), 0.65)
+    t = 0.02
+    g = [
+        f'<geom name="f{i}k" type="box" pos="0 0 0.04" size="{dx*0.95:.3f} {dy*0.95:.3f} 0.04" rgba="{dark}" {F}/>',
+        f'<geom name="f{i}bot" type="box" pos="0 0 0.10" size="{dx:.3f} {dy:.3f} 0.02" rgba="{c}" {F}/>',
+        f'<geom name="f{i}fx" type="box" pos="{dx - t:.3f} 0 {h/2:.3f}" size="{t} {dy:.3f} {h/2 - 0.02:.3f}" rgba="{c}" {F}/>',
+        f'<geom name="f{i}bx" type="box" pos="{-(dx - t):.3f} 0 {h/2:.3f}" size="{t} {dy:.3f} {h/2 - 0.02:.3f}" rgba="{c}" {F}/>',
+        f'<geom name="f{i}ly" type="box" pos="0 {-(dy - t):.3f} {h/2:.3f}" size="{dx:.3f} {t} {h/2 - 0.02:.3f}" rgba="{c}" {F}/>',
+        f'<geom name="f{i}ry" type="box" pos="0 {dy - t:.3f} {h/2:.3f}" size="{dx:.3f} {t} {h/2 - 0.02:.3f}" rgba="{c}" {F}/>',
+    ]
+    # lid hinged at the back-top edge (x=-dx, z=h); axis 0 -1 0 so a positive
+    # angle lifts the front of the slab up and back over the chest
+    lid = (
+        f'<body name="f{i}lid" pos="{-dx:.3f} 0 {h:.3f}">'
+        f'<joint name="f{i}_lid" type="hinge" axis="0 -1 0" range="0 100" '
+        f'damping="3" frictionloss="1.0"/>'
+        f'<geom name="f{i}ld" type="box" pos="{dx:.3f} 0 0" size="{dx:.3f} {dy:.3f} 0.02" '
+        f'rgba="{_jit(rng, wood, 0.02)}" density="400" {D}/>'
+        f'<geom name="f{i}lh" type="box" pos="{2*dx - 0.03:.3f} 0 0.03" size="0.03 0.06 0.012" '
+        f'rgba="{dark}" density="400" {D}/>'
+        f'</body>'
+    )
+    xml = (f'<body name="f{i}art" pos="{pos[0]:.3f} {pos[1]:.3f} 0" quat="{q}">'
+           + "".join(g) + lid + '</body>')
+    return [xml], len(g) + 2
+
+
+def _art_sliding_door_cabinet(rng, i, pos, sz, h, F, D, room_half):
+    """Cabinet with a sliding door (horizontal slide joint — no swing arc, so
+    it fits flush against a wall where a hinged door could not open)."""
+    wood = _WOODS[rng.integers(len(_WOODS))]
+    dark = _jit(rng, tuple(v * 0.6 for v in wood))
+    c = _jit(rng, wood)
+    q, along_x = _facing_quat(pos, room_half)
+    dx = sz[0] if along_x else sz[1]
+    dy = sz[1] if along_x else sz[0]
+    dx, dy = max(dx, 0.22), min(max(dy, 0.4), 0.7)
+    h = max(h, 0.8)
+    t = 0.02
+    zh = (h - 0.15) / 2
+    zc = 0.12 + zh
+    g = [
+        f'<geom name="f{i}k" type="box" pos="0 0 0.04" size="{dx*0.9:.3f} {dy*0.9:.3f} 0.04" rgba="{dark}" {F}/>',
+        f'<geom name="f{i}bt" type="box" pos="0 0 0.10" size="{dx:.3f} {dy - 2*t:.3f} 0.02" rgba="{c}" {F}/>',
+        f'<geom name="f{i}bk" type="box" pos="{-(dx - t):.3f} 0 {h/2:.3f}" size="{t} {dy - 2*t:.3f} {h/2 - 0.02:.3f}" rgba="{c}" {F}/>',
+        f'<geom name="f{i}s0" type="box" pos="0 {-(dy - t):.3f} {h/2:.3f}" size="{dx:.3f} {t} {h/2 - 0.02:.3f}" rgba="{c}" {F}/>',
+        f'<geom name="f{i}s1" type="box" pos="0 {dy - t:.3f} {h/2:.3f}" size="{dx:.3f} {t} {h/2 - 0.02:.3f}" rgba="{c}" {F}/>',
+        f'<geom name="f{i}t" type="box" pos="0 0 {h:.3f}" size="{dx + 0.015:.3f} {dy + 0.015:.3f} 0.015" rgba="{dark}" {F}/>',
+    ]
+    # door covers the left half of the front (+x) face and slides +y to reveal it
+    dw = dy * 0.5
+    travel = dy
+    door = (
+        f'<body name="f{i}sd" pos="{dx + 0.02:.3f} {-dw:.3f} {zc:.3f}">'
+        f'<joint name="f{i}_sdoor" type="slide" axis="0 1 0" range="0 {travel:.3f}" '
+        f'damping="5" frictionloss="1.5"/>'
+        f'<geom name="f{i}sdg" type="box" pos="0 0 0" size="0.015 {dw:.3f} {zh:.3f}" '
+        f'rgba="{_jit(rng, wood, 0.02)}" density="400" {D}/>'
+        f'<geom name="f{i}sdh" type="box" pos="0.03 {dw - 0.05:.3f} 0" size="0.012 0.03 0.05" '
+        f'rgba="{dark}" density="400" {D}/>'
+        f'</body>'
+    )
+    xml = (f'<body name="f{i}art" pos="{pos[0]:.3f} {pos[1]:.3f} 0" quat="{q}">'
+           + "".join(g) + door + '</body>')
+    return [xml], len(g) + 2
+
+
+_ART_ARCHETYPES = (_art_hinged_cabinet, _art_drawer_chest,
+                   _art_lid_chest, _art_sliding_door_cabinet)
+
+# clearance the piece's moving part sweeps into the room (see _art_zone):
+# hinged door needs the full swing arc; a lid opens upward; a drawer needs its
+# travel; a sliding door stays in-plane and needs almost nothing
+_ART_REACH = {
+    _art_hinged_cabinet: 1.0,
+    _art_drawer_chest: 0.45,
+    _art_lid_chest: 0.3,
+    _art_sliding_door_cabinet: 0.2,
+}
 
 
 def generate_room(spec: RoomSpec, out_path: str) -> str:
@@ -343,7 +435,7 @@ def generate_room(spec: RoomSpec, out_path: str) -> str:
                 break
             hit = None
             for arch in dict.fromkeys(needed):
-                reach = 1.0 if arch is _art_hinged_cabinet else 0.45  # swing arc vs travel
+                reach = _ART_REACH[arch]                 # per-archetype sweep
                 zone = _art_zone(pos, sz, (hx, hy), reach)
                 # the swept zone must clear the table AND every other
                 # articulated piece (doors/drawers are mutually collidable,
