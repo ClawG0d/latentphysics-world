@@ -65,6 +65,8 @@ committed tests.
 
 | | | |
 |---|---|---|
+| [Rigid: franka cube grasp](examples/franka_cube_grasp.py) | [Rigid: collision tower](examples/collision_tower.py) | [Rigid: contype masks](examples/contype_demo.py) |
+| <img src="docs/media/franka_cube_grasp.webp" width="240"> | <img src="docs/media/collision_tower.webp" width="240"> | <img src="docs/media/contype_masks.webp" width="240"> |
 | [RL: franka reach](examples/train_franka_reach.py) | [Worlds: procedural room](latentphysics/assets/scene_gen.py) | [Assets: convex decomposition](latentphysics/assets/__init__.py) |
 | <img src="docs/media/policy_reach.webp" width="240"> | <img src="docs/media/procedural_room.webp" width="240"> | <img src="docs/media/convex_decomposition.webp" width="240"> |
 | [Perception: depth + segmentation](latentphysics/perception/camera.py) | [Perception: lidar point cloud](latentphysics/perception/lidar.py) | [Physics: 8192 parallel worlds](tests/test_throughput_gpu.py) |
