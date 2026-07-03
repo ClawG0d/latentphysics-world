@@ -15,7 +15,7 @@ mujoco = pytest.importorskip("mujoco")
 if not torch.cuda.is_available():
     pytest.skip("CUDA device required", allow_module_level=True)
 
-from latentphysics.assets.import_3d import ImportSpec, import_glb  # noqa: E402
+from latentphysics.assets.import_3d import ImportSpec, import_glb, import_usd  # noqa: E402
 
 N = 8
 
@@ -74,6 +74,73 @@ def test_up_axis_conversion(tmp_path):
     gid = next(g for g in range(m.ngeom) if m.geom_contype[g] != 0)
     # +y in glTF becomes +z in MuJoCo
     assert abs(d.geom_xpos[gid][2] - 2.0) < 1e-3
+
+
+def _make_usd(path):
+    """Author a y-up, cm-unit stage: static table + concave ring + dynamic cube."""
+    from pxr import Gf, Usd, UsdGeom, Vt
+
+    def add_mesh(stage, prim_path, tm, translate, color=None):
+        m = UsdGeom.Mesh.Define(stage, prim_path)
+        m.CreatePointsAttr(Vt.Vec3fArray([Gf.Vec3f(*map(float, v)) for v in tm.vertices]))
+        m.CreateFaceVertexCountsAttr(Vt.IntArray([3] * len(tm.faces)))
+        m.CreateFaceVertexIndicesAttr(Vt.IntArray([int(i) for i in tm.faces.flatten()]))
+        UsdGeom.XformCommonAPI(m).SetTranslate(Gf.Vec3d(*translate))
+        if color:
+            m.CreateDisplayColorAttr(Vt.Vec3fArray([Gf.Vec3f(*color)]))
+
+    stage = Usd.Stage.CreateNew(path)
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
+    UsdGeom.SetStageMetersPerUnit(stage, 0.01)          # centimeters
+    # geometry authored in cm, y-up: translate (0, 50, 0) means 0.5 m high
+    add_mesh(stage, "/World/table_top", trimesh.creation.box(extents=(120, 6, 90)),
+             (0, 50, 0), color=(0.6, 0.4, 0.2))
+    ring = trimesh.creation.annulus(r_min=6, r_max=12, height=5)
+    ring.apply_transform(trimesh.transformations.rotation_matrix(
+        np.pi / 2, (1, 0, 0)))                          # axis along stage-y (= up)
+    add_mesh(stage, "/World/ring", ring, (30, 56, 0))
+    add_mesh(stage, "/World/cube", trimesh.creation.box(extents=(10, 10, 10)),
+             (0, 90, 10))
+    stage.GetRootLayer().Save()
+    return path
+
+
+@pytest.fixture(scope="module")
+def usd_scene_path(tmp_path_factory):
+    pytest.importorskip("pxr")
+    d = tmp_path_factory.mktemp("usd")
+    usd = _make_usd(str(d / "corner.usda"))
+    return import_usd(usd, str(d / "out"), name="ucorner",
+                      spec=ImportSpec(dynamic=("cube",)))
+
+
+def test_usd_units_and_up_axis(usd_scene_path):
+    m = mujoco.MjModel.from_xml_path(usd_scene_path)
+    d = mujoco.MjData(m)
+    mujoco.mj_forward(m, d)
+    bid = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, "table_top")
+    assert bid >= 0 and m.body_dofnum[bid] == 0
+    gid = next(g for g in range(m.ngeom)
+               if m.geom_bodyid[g] == bid and m.geom_contype[g] != 0)
+    # cm units + y-up metadata honored: 50 cm up in stage-y -> z = 0.5 m
+    assert abs(d.geom_xpos[gid][2] - 0.5) < 0.02
+    ring_hulls = sum(1 for g in range(m.ngeom)
+                     if (mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_MESH, m.geom_dataid[g]) or "")
+                     .startswith("ring_c"))
+    assert ring_hulls >= 3, f"USD torus produced only {ring_hulls} hulls"
+
+
+def test_usd_scene_steps_stably(usd_scene_path):
+    scene = lpw.load_scene(usd_scene_path, lpw.Config(n_worlds=N))
+    scene.step(250)
+    qpos = scene.qpos()
+    assert torch.isfinite(qpos).all()
+    m = scene.mjm
+    bid = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, "cube")
+    adr = int(m.jnt_qposadr[m.body_jntadr[bid]])
+    z = qpos[:, adr + 2]
+    # 10 cm cube dropped from 0.9 m rests on the 0.53 m table surface
+    assert ((z > 0.55) & (z < 0.63)).all(), f"cube settled at {z[0].item():.3f}"
 
 
 def test_imported_scene_steps_stably(scene_path):
