@@ -48,6 +48,16 @@ def test_manipulation_scene_floor():
     assert sps > 3_000_000, f"manipulation scene regressed: {sps:.0f} steps/s"
 
 
+@pytest.mark.skipif(not os.path.exists(MJCF), reason="menagerie not found")
+def test_manipulation_scene_8192_floor():
+    """The README headline number: measured 8.6M steps/s @ 8192 worlds;
+    floor ~2x below per the file convention. Eager (non-graph) stepping
+    runs ~0.2M steps/s here, so this floor also guards the CUDA-graph path."""
+    scene = lpw.load_scene(MJCF, lpw.Config(n_worlds=8192))
+    sps = _sps(scene)
+    assert sps > 4_000_000, f"8192-world manipulation scene regressed: {sps:.0f} steps/s"
+
+
 def test_indoor_room_floor(tmp_path):
     from latentphysics.assets.scene_gen import RoomSpec, generate_room
     p = generate_room(RoomSpec(seed=0, n_furniture=96, n_clutter=6),

@@ -29,8 +29,9 @@ def scene():
     return lpw.load_scene(MJCF, lpw.Config(n_worlds=N))
 
 
-def test_suite_has_at_least_10_tasks():
-    assert len(SUITE) >= 10
+def test_suite_has_at_least_12_tasks():
+    # the README advertises a 12-task suite; gate the count it claims
+    assert len(SUITE) >= 12
 
 
 @pytest.mark.parametrize("name", sorted(SUITE))
