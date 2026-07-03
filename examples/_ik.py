@@ -12,16 +12,38 @@ from __future__ import annotations
 import numpy as np
 
 
+# fallback downward grasp orientation (the panda gripper quat at the
+# menagerie 'pickup' keyframe) for scenes that don't ship that keyframe
+_DOWN_QUAT = np.array([-0.008, 0.74, 0.666, -0.092])
+
+
 def gripper_down_quat(mjm, site_id, keyframe="pickup"):
-    """A known-good downward grasp orientation: the gripper quat at a keyframe."""
+    """A known-good downward grasp orientation: the gripper quat at a keyframe,
+    or the panda's canonical downward quat if that keyframe isn't present."""
     import mujoco
-    d = mujoco.MjData(mjm)
     kid = mujoco.mj_name2id(mjm, mujoco.mjtObj.mjOBJ_KEY, keyframe)
+    if kid < 0:
+        q = _DOWN_QUAT.copy()
+        return q / np.linalg.norm(q)
+    d = mujoco.MjData(mjm)
     d.qpos[:] = mjm.key_qpos[kid]
     mujoco.mj_forward(mjm, d)
     q = np.zeros(4)
     mujoco.mju_mat2Quat(q, d.site_xmat[site_id])
     return q
+
+
+def tilt_quat(base_quat, angle_rad, axis=(0.0, 1.0, 0.0)):
+    """Rotate ``base_quat`` by ``angle_rad`` about a world ``axis`` — used to
+    tip the gripper for pouring."""
+    import mujoco
+    a = np.asarray(axis, dtype=float)
+    a = a / (np.linalg.norm(a) or 1.0)
+    dq = np.zeros(4)
+    mujoco.mju_axisAngle2Quat(dq, a, angle_rad)
+    out = np.zeros(4)
+    mujoco.mju_mulQuat(out, dq, np.asarray(base_quat, dtype=float))
+    return out
 
 
 def solve_ik(mjm, mjd, site_id, target_pos, target_quat, q_seed,
@@ -63,3 +85,63 @@ def solve_ik(mjm, mjd, site_id, target_pos, target_quat, q_seed,
         dq = J.T @ np.linalg.solve(J @ J.T + (damping ** 2) * np.eye(6), err)
         q = np.clip(q + dq, lo, hi)
     return q
+
+
+class ArmController:
+    """Scripted Franka controller for the demos: drives the gripper through
+    world-pose waypoints via IK on the GPU sim, recording world-0 qpos.
+
+    Centralizes the two lessons from the manipulation demos: CONTINUOUS IK
+    seeding (each solve starts from the previous solution, so consecutive
+    waypoints give smooth arm motion instead of branch-jumping), and one
+    place for the downward/tilted grasp orientation. No policy — pure
+    scripted kinematics.
+    """
+
+    OPEN, CLOSED = 0.04, 0.0
+
+    def __init__(self, scene, site="gripper", home_key="home"):
+        import mujoco
+        import torch
+
+        self.scene, self.mjm = scene, scene.mjm
+        self.sid = mujoco.mj_name2id(self.mjm, mujoco.mjtObj.mjOBJ_SITE, site)
+        self.downq = gripper_down_quat(self.mjm, self.sid)
+        kid = mujoco.mj_name2id(self.mjm, mujoco.mjtObj.mjOBJ_KEY, home_key)
+        self._home = self.mjm.key_qpos[kid].copy()
+        self._seed = self._home[:7].copy()
+        self._cur = self._seed.copy()
+        self._ikd = mujoco.MjData(self.mjm)
+        self.qpos, self.ctrl = scene.qpos(), scene.state("ctrl")
+        self.traj = []
+        # reset all worlds to the home keyframe
+        self.qpos[:, :] = torch.as_tensor(self._home, dtype=torch.float32, device="cuda")
+        scene.qvel().zero_()
+        self.ctrl[:, :7] = torch.as_tensor(self._seed, dtype=torch.float32, device="cuda")
+        self.ctrl[:, 7] = self.OPEN
+        scene.forward()
+
+    def arm_for(self, pos, quat=None):
+        self._cur = solve_ik(self.mjm, self._ikd, self.sid, np.asarray(pos, float),
+                             self.downq if quat is None else quat, self._cur)
+        return self._cur
+
+    def move(self, pos, grip, steps, quat=None, record=True):
+        """Servo the gripper to ``pos`` (world) with ``grip`` opening for
+        ``steps`` engine steps; record world-0 qpos each step."""
+        import torch
+        self.ctrl[:, :7] = torch.as_tensor(self.arm_for(pos, quat), dtype=torch.float32, device="cuda")
+        self.ctrl[:, 7] = grip
+        for _ in range(steps):
+            self.scene.step()
+            if record:
+                self.traj.append(self.qpos[0].cpu().numpy().copy())
+
+    def hold(self, grip, steps):
+        """Keep the current arm target, set gripper opening, step (e.g. to
+        settle or to close the gripper in place)."""
+        import torch
+        self.ctrl[:, 7] = grip
+        for _ in range(steps):
+            self.scene.step()
+            self.traj.append(self.qpos[0].cpu().numpy().copy())

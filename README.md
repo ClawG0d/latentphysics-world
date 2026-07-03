@@ -60,14 +60,17 @@ actual simulation from this repo on a single consumer GPU (RTX 5070 Ti), and
 every label links to the code that produced it. Nothing staged, nothing
 rendered offline: contact forces match the reference engine to **0.00%**,
 the manipulation scene steps at **8M+ physics steps/s** across 8192 worlds,
-the Franka **picks, places, pushes, stacks, and opens a drawer** via
-IK-scripted contact (no learned policies), and a **12-task benchmark suite** auto-verifies
+the Franka runs a **spread of scripted tasks — pick-and-place, stacking,
+pushing, sorting, sweeping, peg insertion, drawer opening** — via IK-scripted
+contact (no learned policies), and a **12-task benchmark suite** auto-verifies
 behavior with physically checkable predicates — all enforced by committed tests.
 
 | | | |
 |---|---|---|
 | [Manipulation: pick & place](examples/franka_pick_place.py) | [Manipulation: stack](examples/franka_stack.py) | [Manipulation: push](examples/franka_push.py) |
 | <img src="docs/media/franka_pick_place.webp" width="240"> | <img src="docs/media/franka_stack.webp" width="240"> | <img src="docs/media/franka_push.webp" width="240"> |
+| [Manipulation: peg-in-hole](examples/franka_peg_insert.py) | [Manipulation: sort into bin](examples/franka_sort.py) | [Manipulation: sweep clutter](examples/franka_sweep.py) |
+| <img src="docs/media/franka_peg_insert.webp" width="240"> | <img src="docs/media/franka_sort.webp" width="240"> | <img src="docs/media/franka_sweep.webp" width="240"> |
 | [Manipulation: open drawer](examples/franka_open_drawer_arm.py) | [Rigid: collision tower](examples/collision_tower.py) | [Rigid: contype masks](examples/contype_demo.py) |
 | <img src="docs/media/franka_open_drawer.webp" width="240"> | <img src="docs/media/collision_tower.webp" width="240"> | <img src="docs/media/contype_masks.webp" width="240"> |
 | [Worlds: procedural room](examples/procedural_room.py) | [Worlds: articulated furniture](examples/articulated_room.py) | [Assets: real CC0 meshes](examples/real_assets.py) |
