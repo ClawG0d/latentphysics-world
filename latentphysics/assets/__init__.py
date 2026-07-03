@@ -32,6 +32,41 @@ def _load_trimesh(mesh):
     return m
 
 
+def _sanitize_mesh(m):
+    """Drop the degeneracies that make CoACD/MuJoCo misbehave: non-finite
+    vertices (and any face touching them), zero-area faces, and duplicate
+    vertices. Returns a cleaned trimesh, or None if nothing usable remains.
+
+    Real scanned/exported assets routinely carry these — feeding them to
+    CoACD raw yields silent empty output (a collision-less "ghost" body) or
+    a hard crash, so this runs before every decomposition.
+    """
+    import numpy as np
+    import trimesh
+
+    v = np.asarray(m.vertices, dtype=np.float64)
+    f = np.asarray(m.faces, dtype=np.int64)
+    if v.size == 0 or f.size == 0:
+        return None
+
+    finite = np.isfinite(v).all(axis=1)
+    if not finite.all():
+        remap = -np.ones(len(v), dtype=np.int64)
+        remap[finite] = np.arange(int(finite.sum()))
+        v = v[finite]
+        f = remap[f]
+        f = f[(f >= 0).all(axis=1)]
+        if len(v) == 0 or len(f) == 0:
+            return None
+
+    clean = trimesh.Trimesh(vertices=v, faces=f, process=True)  # merges dupes
+    clean.update_faces(clean.nondegenerate_faces())             # drops zero-area
+    clean.remove_unreferenced_vertices()
+    if len(clean.vertices) < 4 or len(clean.faces) == 0:
+        return None
+    return clean
+
+
 def convex_decompose(mesh, threshold: float = 0.05, max_hulls: int = -1):
     """Decompose a (possibly concave) mesh into convex parts via CoACD (CPU).
 
@@ -41,15 +76,34 @@ def convex_decompose(mesh, threshold: float = 0.05, max_hulls: int = -1):
     threshold:  CoACD concavity threshold (lower = more parts, tighter fit).
     max_hulls:  cap on number of convex hulls (-1 = unlimited).
 
-    Returns list[ConvexPart]. Contact-sensitive furniture (edges/handles) wants
-    a lower threshold / higher hull budget.
+    Returns a non-empty list[ConvexPart]. The mesh is sanitized first; if
+    CoACD fails or returns nothing, falls back to the mesh's single convex
+    hull so the caller never silently gets a collision-less body. Raises
+    ValueError if the mesh has no usable geometry at all.
+
+    Contact-sensitive furniture (edges/handles) wants a lower threshold /
+    higher hull budget.
     """
     import coacd
     import numpy as np
 
-    m = _load_trimesh(mesh)
-    cmesh = coacd.Mesh(np.asarray(m.vertices, dtype=np.float64), np.asarray(m.faces, dtype=np.int32))
-    parts = coacd.run_coacd(cmesh, threshold=threshold, max_convex_hull=max_hulls)
+    m = _sanitize_mesh(_load_trimesh(mesh))
+    if m is None:
+        raise ValueError("convex_decompose: mesh has no usable geometry "
+                         "after sanitization (empty / non-finite / degenerate)")
+
+    parts = []
+    try:
+        cmesh = coacd.Mesh(np.asarray(m.vertices, dtype=np.float64),
+                           np.asarray(m.faces, dtype=np.int32))
+        parts = coacd.run_coacd(cmesh, threshold=threshold, max_convex_hull=max_hulls)
+    except Exception:
+        parts = []
+
+    if not parts:   # CoACD gave up — a single convex hull still collides correctly
+        hull = m.convex_hull
+        parts = [(np.asarray(hull.vertices), np.asarray(hull.faces))]
+
     return [ConvexPart(vertices=np.asarray(v, dtype=np.float32), faces=np.asarray(f, dtype=np.int32))
             for (v, f) in parts]
 
