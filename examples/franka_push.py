@@ -41,13 +41,16 @@ def main():
 
     cube_start = np.array([0.5, 0.0, 0.03])
     goal_x = 0.66
-    push_z = 0.05                         # fingertips at cube height
-    behind = cube_start[0] - 0.09
+    push_z = 0.065                        # gripper contacts the cube's back face
+    behind = cube_start[0] - 0.10
+    # the gripper trails ~7 cm behind the cube so the cube stays clearly AHEAD
+    # of the wrist (driving to the goal itself parks the wrist on top of it)
+    gripper_stop = goal_x - 0.07
     waypoints = [
-        ([behind, 0.0, push_z + 0.15], 60),   # approach above, behind the cube
-        ([behind, 0.0, push_z], 50),           # descend behind it
-        ([goal_x, 0.0, push_z], 120),          # sweep forward, pushing the cube
-        ([goal_x, 0.0, push_z + 0.15], 50),    # retract up
+        ([behind, 0.0, push_z + 0.16], 60),        # approach above, behind the cube
+        ([behind, 0.0, push_z], 55),               # descend behind it
+        ([gripper_stop, 0.0, push_z], 140),        # sweep forward, pushing the cube
+        ([gripper_stop, 0.0, push_z + 0.16], 50),  # retract up
     ]
 
     qpos, ctrl = scene.qpos(), scene.state("ctrl")

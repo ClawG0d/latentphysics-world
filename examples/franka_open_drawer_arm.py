@@ -29,7 +29,9 @@ def main():
                            lpw.Config(n_worlds=4, njmax=2048))
     mjm = scene.mjm
     sid = mujoco.mj_name2id(mjm, mujoco.mjtObj.mjOBJ_SITE, "gripper")
-    hgid = mujoco.mj_name2id(mjm, mujoco.mjtObj.mjOBJ_GEOM, "f0w1h")   # upper handle
+    # upper drawer: a top-down grasp has clearance above it (the lower drawer's
+    # handle is blocked from above by the chest body)
+    hgid = mujoco.mj_name2id(mjm, mujoco.mjtObj.mjOBJ_GEOM, "f0w1h")
     jid = mujoco.mj_name2id(mjm, mujoco.mjtObj.mjOBJ_JOINT, "f0_drawer1")
     dr_adr = int(mjm.jnt_qposadr[jid])
     seed = mjm.key_qpos[mujoco.mj_name2id(mjm, mujoco.mjtObj.mjOBJ_KEY, "home")][:7].copy()
@@ -82,8 +84,8 @@ def main():
     if args.record:
         from _record import record_webp
         record_webp(build_articulated_scene("open_drawer"), np.asarray(traj), "franka_open_drawer",
-                    cam={"lookat": (0.4, 0.0, 0.42), "distance": 2.1,
-                         "azimuth": 90, "elevation": -8}, every=4, quality=52)
+                    cam={"lookat": (0.35, 0.0, 0.47), "distance": 1.25,
+                         "azimuth": 108, "elevation": -10}, every=4, quality=54)
 
 
 if __name__ == "__main__":

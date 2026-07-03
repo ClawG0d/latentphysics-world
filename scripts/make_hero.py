@@ -13,7 +13,7 @@ from PIL import Image, ImageSequence
 MEDIA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                      "docs", "media")
 # a spread across the pillars: manipulation, worlds, real assets, dynamics
-TILES = ["franka_cube_grasp", "procedural_room", "real_assets", "collision_tower"]
+TILES = ["franka_pick_place", "procedural_room", "real_assets", "collision_tower"]
 TW, TH = 480, 300
 
 
