@@ -58,21 +58,21 @@ have — one consumer GPU today, a fleet tomorrow.
 LPW is early and moving fast — and it already runs. Every clip below is an
 actual simulation from this repo on a single consumer GPU (RTX 5070 Ti), and
 every label links to the code that produced it. Nothing staged, nothing
-rendered offline: the reach policy evaluates at **100% success**, contact
-forces match the reference engine to **0.00%**, and the manipulation scene
-steps at **8M+ physics steps/s** across 8192 worlds — all enforced by
-committed tests.
+rendered offline: contact forces match the reference engine to **0.00%**,
+the manipulation scene steps at **8M+ physics steps/s** across 8192 worlds,
+and a **12-task benchmark suite** auto-verifies behavior with physically
+checkable predicates — all enforced by committed tests.
 
 | | | |
 |---|---|---|
 | [Rigid: franka cube grasp](examples/franka_cube_grasp.py) | [Rigid: collision tower](examples/collision_tower.py) | [Rigid: contype masks](examples/contype_demo.py) |
 | <img src="docs/media/franka_cube_grasp.webp" width="240"> | <img src="docs/media/collision_tower.webp" width="240"> | <img src="docs/media/contype_masks.webp" width="240"> |
-| [RL: franka reach](examples/train_franka_reach.py) | [Worlds: procedural room](latentphysics/assets/scene_gen.py) | [Assets: convex decomposition](latentphysics/assets/__init__.py) |
-| <img src="docs/media/policy_reach.webp" width="240"> | <img src="docs/media/procedural_room.webp" width="240"> | <img src="docs/media/convex_decomposition.webp" width="240"> |
-| [Perception: depth + segmentation](latentphysics/perception/camera.py) | [Perception: lidar point cloud](latentphysics/perception/lidar.py) | [Physics: 8192 parallel worlds](tests/test_throughput_gpu.py) |
-| <img src="docs/media/depth_segmentation.webp" width="240"> | <img src="docs/media/lidar_pointcloud.webp" width="240"> | <img src="docs/media/hero.png" width="240"> |
-| [Worlds: articulated furniture](examples/articulated_room.py) | [Assets: GLB scene import](examples/glb_import.py) | |
-| <img src="docs/media/articulated_room.webp" width="240"> | <img src="docs/media/glb_import.webp" width="240"> | |
+| [Worlds: procedural room](latentphysics/assets/scene_gen.py) | [Worlds: articulated furniture](examples/articulated_room.py) | [Assets: GLB scene import](examples/glb_import.py) |
+| <img src="docs/media/procedural_room.webp" width="240"> | <img src="docs/media/articulated_room.webp" width="240"> | <img src="docs/media/glb_import.webp" width="240"> |
+| [Assets: convex decomposition](latentphysics/assets/__init__.py) | [Perception: depth + segmentation](latentphysics/perception/camera.py) | [Perception: lidar point cloud](latentphysics/perception/lidar.py) |
+| <img src="docs/media/convex_decomposition.webp" width="240"> | <img src="docs/media/depth_segmentation.webp" width="240"> | <img src="docs/media/lidar_pointcloud.webp" width="240"> |
+| [Physics: 8192 parallel worlds](tests/test_throughput_gpu.py) | | |
+| <img src="docs/media/hero.png" width="240"> | | |
 
 And the whole thing speaks PyTorch:
 

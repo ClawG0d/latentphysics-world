@@ -1,7 +1,7 @@
-"""Open-drawer manipulation task (R4) — Franka + articulated drawer chest.
+"""Open-drawer benchmark task (R4) — Franka + articulated drawer chest.
 
-First task to exercise R4 articulated furniture in the RL stack: the arm
-must pull the UPPER drawer of a chest open past 15 cm (of ~26 cm travel).
+First benchmark to exercise R4 articulated furniture: the arm must pull
+the UPPER drawer of a chest open past 15 cm (of ~26 cm travel).
 Physically checkable predicate (a joint coordinate), same auto-verified
 contract as the R2 suite.
 

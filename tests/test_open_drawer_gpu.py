@@ -1,4 +1,4 @@
-"""GPU tests for the open-drawer task (R4 articulated furniture meets RL)."""
+"""GPU tests for the open-drawer benchmark task (R4 articulated furniture)."""
 
 import os
 
