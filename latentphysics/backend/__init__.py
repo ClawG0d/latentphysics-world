@@ -7,6 +7,6 @@ Everything above this layer (assets/perception/nav/envs/...) depends on the
 a stable interface.
 """
 
-from .warp_engine import WarpEngine, Scene, EngineUnavailable
+from .warp_engine import WarpEngine, Scene, EngineUnavailable, BudgetOverflow
 
-__all__ = ["WarpEngine", "Scene", "EngineUnavailable"]
+__all__ = ["WarpEngine", "Scene", "EngineUnavailable", "BudgetOverflow"]

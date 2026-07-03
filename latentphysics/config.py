@@ -21,8 +21,11 @@ class Config:
     dtype:      "float32" (engine works in fp32).
     timestep:   physics dt (s). None -> take from the MJCF <option timestep>.
     naconmax:   per-batch contact-buffer cap; indoor scenes need it large
-                (see readiness report §4/§5). None -> engine default (small!).
-    njmax:      per-world constraint cap. None -> engine default.
+                (see readiness report §4/§5). None -> auto-scaled from the
+                scene's dynamic geom count (backend._auto_budgets).
+    njmax:      per-world constraint cap. None -> auto-scaled likewise.
+                Overflowing it corrupts the solve, so the backend raises
+                BudgetOverflow at step time rather than hand back NaN qpos.
     """
 
     n_worlds: int = 1

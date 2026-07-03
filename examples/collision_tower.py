@@ -67,9 +67,11 @@ def main():
 
     scene_path = os.path.expanduser("~/lpw/assets/demos/tower.xml")
     build_scene(scene_path)
-    # 49 free bodies in one pile: constraint rows exceed the auto budget's
-    # 1024-per-world hygiene cap (overflow silently corrupts the solve → NaN)
-    scene = lpw.load_scene(scene_path, lpw.Config(n_worlds=4, njmax=2048))
+    # 49 free bodies in one pile need ~1152 constraint rows per world at
+    # collapse. The auto budget scales njmax with dynamic-geom count (2048
+    # here), and an undersized cap raises BudgetOverflow at step time instead
+    # of silently corrupting qpos to NaN — no explicit njmax needed anymore.
+    scene = lpw.load_scene(scene_path, lpw.Config(n_worlds=4))
 
     # fling the ball at the tower (free-joint linear dofs of the last body)
     qv = scene.qvel()

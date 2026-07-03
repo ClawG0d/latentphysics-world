@@ -6,6 +6,7 @@ Run on Linux/WSL2 + NVIDIA GPU:  pytest tests/test_backend_gpu.py -v
 
 import io
 import contextlib
+import math
 
 import pytest
 
@@ -69,6 +70,60 @@ def test_partial_restore_branches_worlds(scene):
     q = scene.qpos()
     assert (q[:4] - q0[:4]).abs().max().item() < 1e-6
     assert (q[4:] - q0[4:]).abs().max().item() > 1e-4
+
+
+@pytest.fixture(scope="module")
+def pile_scene_path(tmp_path_factory):
+    """Dense free-body pile: 6x8 ring tower of boxes + a heavy ball to topple
+    it (the examples/collision_tower.py geometry, stripped of visuals). Once
+    collapsed it needs ~1152 constraint rows per world — past the old flat
+    1024 njmax cap whose overflow silently corrupted the solve to NaN."""
+    layers, per_layer, radius = 6, 8, 0.24
+    bx, by, bz = 0.085, 0.032, 0.045
+    body = ['<geom name="floor" type="plane" size="4 4 0.1"/>']
+    for lay in range(layers):
+        z = bz * (2 * lay + 1)
+        for i in range(per_layer):
+            a = 2 * math.pi * (i + 0.5 * (lay % 2)) / per_layer
+            body.append(
+                f'<body pos="{radius * math.cos(a):.4f} {radius * math.sin(a):.4f} {z:.4f}" '
+                f'euler="0 0 {math.degrees(a) + 90:.2f}"><freejoint/>'
+                f'<geom type="box" size="{bx} {by} {bz}" mass="0.08"/></body>')
+    body.append('<body pos="-1.6 0 0.35"><freejoint/>'
+                '<geom type="sphere" size="0.09" mass="2.5"/></body>')
+    xml = ('<mujoco model="dense_pile">'
+           '<option timestep="0.004" iterations="10" ls_iterations="10"/>'
+           '<worldbody>' + "".join(body) + '</worldbody></mujoco>')
+    out = tmp_path_factory.mktemp("pile") / "pile.xml"
+    out.write_text(xml)
+    return str(out)
+
+
+def test_auto_njmax_covers_dense_pile(pile_scene_path):
+    """48 free boxes + ball must survive collapse on the AUTO budget alone."""
+    scene = lpw.load_scene(pile_scene_path, lpw.Config(n_worlds=2))
+    assert scene.data.njmax >= 1536  # scaled past the old flat 1024 cap
+    qv = scene.qvel()
+    qv[:, -6] = 5.5   # fling the ball at the tower, as in the demo
+    qv[:, -4] = 1.2
+    scene.forward()
+    for _ in range(8):
+        scene.step(70)  # 560 steps, chunked like a rollout loop
+    assert torch.isfinite(scene.qpos()).all(), "solve corrupted to NaN"
+    peak = int(scene._nefc_peak.numpy()[0])
+    assert peak > 1024, "pile never exceeded the old cap — regression test is inert"
+    assert peak <= scene.data.njmax
+
+
+def test_njmax_overflow_raises_instead_of_nan(pile_scene_path):
+    """An undersized explicit njmax must fail loudly at step time: the engine's
+    own warning is a GPU-kernel printf, and the solve corrupts to NaN."""
+    from latentphysics.backend import BudgetOverflow
+
+    scene = lpw.load_scene(pile_scene_path, lpw.Config(n_worlds=2, njmax=256))
+    with pytest.raises(BudgetOverflow, match="njmax"):
+        for _ in range(20):
+            scene.step(10)
 
 
 def test_replay_determinism_within_atomic_noise(scene):

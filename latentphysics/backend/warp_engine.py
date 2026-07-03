@@ -24,6 +24,16 @@ class EngineUnavailable(RuntimeError):
     """Raised when the GPU physics engine (warp / mujoco_warp) can't be used."""
 
 
+class BudgetOverflow(RuntimeError):
+    """Raised when a step needed more constraint rows than ``njmax``.
+
+    The engine reports this only as a printf from inside a GPU kernel — easy
+    to miss in training logs — while the solver keeps running on a truncated
+    constraint system, corrupting qpos to NaN within a step. We track the peak
+    per-world ``nefc`` on device and fail loudly at the Python level instead.
+    """
+
+
 def _require_engine():
     """Lazily import the engine, with an actionable error if unavailable."""
     try:
@@ -39,6 +49,28 @@ def _require_engine():
             f"Underlying import error: {e}"
         ) from e
     return mujoco, wp, mjw
+
+
+_NEFC_PEAK_KERNEL = None
+
+
+def _nefc_peak_kernel(wp):
+    """Warp kernel: running max of per-world nefc into a 1-element buffer.
+
+    Built lazily (warp only imports inside :func:`_require_engine`). Launched
+    INSIDE the captured step graph because overflow evidence self-destructs:
+    once qpos corrupts to NaN, broadphase finds no contacts and nefc drops
+    back under the cap within a step or two, so reading ``d.nefc`` after a
+    multi-step batch misses mid-batch overflow. An atomic running max doesn't.
+    """
+    global _NEFC_PEAK_KERNEL
+    if _NEFC_PEAK_KERNEL is None:
+        @wp.kernel
+        def track_nefc_peak(nefc: wp.array(dtype=wp.int32),
+                            peak: wp.array(dtype=wp.int32)):
+            wp.atomic_max(peak, 0, nefc[wp.tid()])
+        _NEFC_PEAK_KERNEL = track_nefc_peak
+    return _NEFC_PEAK_KERNEL
 
 
 def _auto_budgets(mjm, n_worlds: int) -> dict:
@@ -61,16 +93,27 @@ def _auto_budgets(mjm, n_worlds: int) -> dict:
     n_dyn = max(int(np.count_nonzero(col & dyn)), 1)
     per_world = min(max(16 * n_dyn + 16, 64), 512)   # contacts per world
     naconmax = min(per_world * max(n_worlds, 1), 1 << 19)  # pooled across worlds
+    # Non-contact constraint rows contact sizing can't see: joint limits and
+    # dof friction assemble ~1 row each, equality constraints up to 6 (weld).
+    n_aux = (int(np.count_nonzero(mjm.jnt_limited))
+             + int(np.count_nonzero(mjm.dof_frictionloss))
+             + 6 * int(mjm.neq))
     return {
         "naconmax": naconmax,
-        # njmax is per world; ~4 constraint rows per pyramidal condim-3 contact.
-        # Capped at 1024 as buffer hygiene. NOTE the separate hard engine limit
+        # njmax is per world; ~4 constraint rows per pyramidal condim-3 contact,
+        # so it must cover the FULL per-world contact budget. An earlier flat
+        # 1024 cap starved dense free-body piles — 48 settled boxes need ~1152
+        # rows — and njmax overflow doesn't degrade, it corrupts: the solver
+        # runs on truncated rows and qpos goes NaN within a step (also raised
+        # as BudgetOverflow at step time). per_world's own 512 cap bounds
+        # contact rows at 2048; 4096 is hygiene backstop (dense efc_J costs
+        # nv*4B per row per world). NOTE the separate hard engine limit
         # we hit on consumer GPUs: with sleep enabled, the compact tiled solver
         # allocates nv^2*4B of shared memory per block (nv=192 -> 172 KB vs the
         # ~101 KB consumer-GPU cap) and fails with 'invalid argument',
         # poisoning any CUDA graph capture in flight. High-nv (~>150) worlds
         # with sleep need an upstream kernel fix (blocked hessian tiles).
-        "njmax": min(max(4 * per_world, 128), 1024),
+        "njmax": min(max(4 * per_world + n_aux, 128), 4096),
         # convex-CCD (GJK/EPA) slots cost ~3 KB each. Demand is ~2-4 slots per
         # dynamic geom per world (measured ~64/world on a 32-object room), so
         # scale per world with margin but hard-cap total: the cap trades
@@ -98,6 +141,7 @@ class Scene:
     _graph: Any = None      # captured CUDA graph of ONE step (replayed n times)
     _fwd_graph: Any = None  # captured CUDA graph of forward() (used by resets)
     _no_graph: bool = False  # sleep-enabled models can't use naive capture
+    _nefc_peak: Any = None  # (1,) int32 on GPU: running max of per-world nefc
 
     # --- stepping -------------------------------------------------------------
     def step(self, n: int = 1) -> "Scene":
@@ -212,8 +256,10 @@ class WarpEngine:
         }
         data = mjw.make_data(mjm, **make_kw)
         no_graph = bool(mjm.opt.enableflags & mujoco.mjtEnableBit.mjENBL_SLEEP)
+        nefc_peak = wp.zeros(1, dtype=wp.int32, device="cuda")
         return Scene(engine=self, mjm=mjm, model=model, data=data,
-                     n_worlds=self.config.n_worlds, _no_graph=no_graph)
+                     n_worlds=self.config.n_worlds, _no_graph=no_graph,
+                     _nefc_peak=nefc_peak)
 
     # --- internals ------------------------------------------------------------
     def _step(self, scene: Scene, n: int) -> None:
@@ -225,6 +271,12 @@ class WarpEngine:
         once per (scene, n); replay every call. Falls back to eager launches
         if capture is unsupported.
         """
+        self._launch_steps(scene, n)
+        self._wp.synchronize()
+        self._raise_on_nefc_overflow(scene)
+
+    def _launch_steps(self, scene: Scene, n: int) -> None:
+        """Launch n steps (graph replay or eager); callers sync + check after."""
         mjw, wp = self._mjw, self._wp
         if scene._no_graph:
             # sleep-enabled models change kernel launch shapes dynamically —
@@ -232,7 +284,7 @@ class WarpEngine:
             # capture is fork-level engine work, tracked for R2-eng)
             for _ in range(n):
                 mjw.step(scene.model, scene.data)
-            wp.synchronize()
+                self._track_nefc(scene)
             return
         if scene._graph is None:
             try:
@@ -243,12 +295,13 @@ class WarpEngine:
                 # re-captured whenever n changed — a measured 10x throughput
                 # trap for callers using variable step counts.)
                 mjw.step(scene.model, scene.data)
+                self._track_nefc(scene)  # JIT the tracker before capture too
                 with wp.ScopedCapture() as cap:
                     mjw.step(scene.model, scene.data)
+                    self._track_nefc(scene)
                 scene._graph = cap.graph
                 n -= 1  # the JIT warmup pass above already advanced one step
                 if n <= 0:
-                    wp.synchronize()
                     return
             except Exception:
                 scene._graph = None
@@ -258,10 +311,11 @@ class WarpEngine:
         else:
             for _ in range(n):
                 mjw.step(scene.model, scene.data)
-        wp.synchronize()
+                self._track_nefc(scene)
 
     def _reset(self, scene: Scene) -> None:
         self._mjw.reset_data(scene.model, scene.data)
+        scene._nefc_peak.zero_()  # fresh state: stale overflow must not re-raise
 
     def _forward(self, scene: Scene) -> None:
         """Recompute derived state. Graph-captured like _step — resets call this
@@ -273,13 +327,42 @@ class WarpEngine:
         else:
             try:
                 mjw.forward(scene.model, scene.data)  # warmup/JIT
+                self._track_nefc(scene)
                 with wp.ScopedCapture() as cap:
                     mjw.forward(scene.model, scene.data)
+                    self._track_nefc(scene)
                 scene._fwd_graph = cap.graph
             except Exception:
                 scene._fwd_graph = None
                 mjw.forward(scene.model, scene.data)
+                self._track_nefc(scene)
         wp.synchronize()
+        self._raise_on_nefc_overflow(scene)
+
+    def _track_nefc(self, scene: Scene) -> None:
+        """Fold this step's per-world nefc into the scene's running peak."""
+        self._wp.launch(_nefc_peak_kernel(self._wp), dim=scene.n_worlds,
+                        inputs=[scene.data.nefc, scene._nefc_peak])
+
+    def _raise_on_nefc_overflow(self, scene: Scene) -> None:
+        """Surface the engine's kernel-printf 'nefc overflow' as a hard error.
+
+        Called after every step/forward sync (a 4-byte D2H read). Overflow is
+        never survivable — the solver ran on a truncated constraint system and
+        qpos corrupts to NaN — so failing loudly beats a printf lost in logs.
+        """
+        peak = int(scene._nefc_peak.numpy()[0])
+        njmax = int(scene.data.njmax)
+        if peak <= njmax:
+            return
+        suggest = -(-(peak * 5 // 4) // 256) * 256  # peak +25%, next mult of 256
+        raise BudgetOverflow(
+            f"constraint buffer overflow: a world needed {peak} constraint rows "
+            f"but njmax={njmax}. Rows past the cap were dropped, so the solve is "
+            f"corrupt (qpos goes NaN within a step) and state from this scene is "
+            f"unusable until reset(). Reload with Config(njmax={suggest}) or "
+            f"reduce the number of dynamic collision geoms."
+        )
 
     def _to_torch(self, warp_array):
         """Zero-copy view of a warp array as a torch tensor (GPU)."""
@@ -329,4 +412,7 @@ class WarpEngine:
                 raise ValueError(f"worlds must be bool mask of shape ({scene.n_worlds},)")
             active = wp.array(mask, dtype=wp.bool, device="cuda")
         mjw.set_state(scene.model, scene.data, snap, sig, active)
+        # restoring a known-good snapshot clears any recorded overflow —
+        # otherwise a stale peak would keep raising after the state is healthy
+        scene._nefc_peak.zero_()
         wp.synchronize()
