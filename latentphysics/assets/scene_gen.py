@@ -394,8 +394,12 @@ def generate_room(spec: RoomSpec, out_path: str) -> str:
                 'diffuse="0.34 0.35 0.38" specular="0 0 0" castshadow="false"/>')
     # shell: warm wood floor + TRANSLUCENT walls (alpha is visual only —
     # collision is unchanged; opaque walls occlude the interior from any
-    # outside camera, which made demos unreadable)
-    body.append(f'<geom name="floor" type="plane" size="{hx} {hy} 0.1" rgba=".72 .62 .48 1" {S}/>')
+    # outside camera, which made demos unreadable). Materials are diffuse
+    # grain textures (materials.py) that the geom rgba still tints; visual
+    # only, physics untouched.
+    Swood = S + ' material="mat_wood"'
+    body.append(f'<geom name="floor" type="plane" size="{hx} {hy} 0.1" '
+                f'rgba=".72 .62 .48 1" material="mat_plaster" {S}/>')
     for i, (p, s) in enumerate((
         ((hx + wt, 0), (wt, hy + wt)), ((-hx - wt, 0), (wt, hy + wt)),
         ((0, hy + wt), (hx + wt, wt)), ((0, -hy - wt), (hx + wt, wt)),
@@ -404,11 +408,11 @@ def generate_room(spec: RoomSpec, out_path: str) -> str:
                     f'size="{s[0]} {s[1]} {wh}" rgba=".93 .91 .88 0.22" ' + F + '/>')
     # work table (static)
     body.append(f'<geom name="table" type="box" pos="{tx} {ty} {tz - 0.02}" '
-                f'size="{thx} {thy} 0.02" rgba=".55 .4 .3 1" ' + S + '/>')
+                f'size="{thx} {thy} 0.02" rgba=".55 .4 .3 1" ' + Swood + '/>')
     for i, (sx, sy) in enumerate(((1, 1), (1, -1), (-1, 1), (-1, -1))):
         body.append(f'<geom name="tleg{i}" type="box" '
                     f'pos="{tx + sx * (thx - 0.05)} {ty + sy * (thy - 0.05)} {(tz - 0.04) / 2}" '
-                    f'size="0.04 0.04 {(tz - 0.04) / 2}" rgba=".45 .33 .25 1" ' + S + '/>')
+                    f'size="0.04 0.04 {(tz - 0.04) / 2}" rgba=".45 .33 .25 1" ' + Swood + '/>')
     # furniture along the walls — multi-box archetypes (cabinet / shelf /
     # sofa / sideboard) under a geom budget. n_furniture ~= number of static
     # furniture GEOMS (keeps large-scene benchmarks comparable); every piece
@@ -448,7 +452,11 @@ def generate_room(spec: RoomSpec, out_path: str) -> str:
                 continue
             arch, zone = hit
             needed.remove(arch)
-            parts, ng = arch(art_rng, fi, pos, sz, h, F, D, (hx, hy))
+            # articulated furniture is all wood; append the material to both
+            # the static-carcass and dynamic-part masks (archetypes stay
+            # untouched — they just emit geoms with a material now)
+            parts, ng = arch(art_rng, fi, pos, sz, h,
+                             F + ' material="mat_wood"', D + ' material="mat_wood"', (hx, hy))
             body.extend(parts)
             budget -= ng
             fi += 1
@@ -466,7 +474,9 @@ def generate_room(spec: RoomSpec, out_path: str) -> str:
             if any(_overlaps(foot, z) for z in art_zones):
                 continue
         arch = _ARCHETYPES[int(rng.integers(len(_ARCHETYPES)))]
-        geoms = arch(rng, fi, pos, sz, h, F)
+        # sofas read as upholstery (fabric weave); everything else as wood
+        mat = ' material="mat_fabric"' if arch is _arch_sofa else ' material="mat_wood"'
+        geoms = arch(rng, fi, pos, sz, h, F + mat)
         body.extend(geoms)
         budget -= len(geoms)
         fi += 1
@@ -504,9 +514,13 @@ def generate_room(spec: RoomSpec, out_path: str) -> str:
                 if spec.n_clutter > 0 else
                 f'<camera name="corner" pos="{hx - 0.8:.2f} {-(hy - 0.8):.2f} 1.8" fovy="70"/>')
 
+    from .materials import material_assets
     xml = f"""<mujoco model="lpw_room_seed{spec.seed}">
   <option timestep="0.005" iterations="{spec.solver_iterations}" ls_iterations="{spec.ls_iterations}"/>
   {robot}
+  <asset>
+    {material_assets()}
+  </asset>
   <worldbody>
     {chr(10).join('    ' + b for b in body)}
   </worldbody>

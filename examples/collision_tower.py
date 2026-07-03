@@ -90,7 +90,7 @@ def main():
         record_webp(scene_path, np.asarray(traj), "collision_tower",
                     cam={"lookat": (0, 0, 0.28), "distance": 2.3,
                          "azimuth": 150, "elevation": -16, "azimuth_rate": 0.05},
-                    every=4, fps=12, quality=50)
+                    every=5, fps=12, quality=44)
 
 
 if __name__ == "__main__":
