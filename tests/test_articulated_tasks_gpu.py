@@ -53,9 +53,7 @@ def test_opening_flips_success_and_raises_reward(tmp_path, task):
     # success and raise reward. Retract the arm clear of the piece first — at
     # home the gripper sits in the mouth of the piece (it is staged to grasp
     # the handle), and a servo-held arm resting there drags the drawer, which
-    # is now a realistically light hollow tray rather than the old solid block.
-    # The arm ACTUALLY opening a piece is covered end-to-end by
-    # examples/franka_open_drawer_arm.py.
+    # is a realistically light hollow tray rather than a solid block.
     qp, ct = env.scene.qpos(), env.scene.state("ctrl")
     qp[:, 1] = -1.3      # lift the shoulder so the gripper clears the piece
     ct[:, 1] = -1.3

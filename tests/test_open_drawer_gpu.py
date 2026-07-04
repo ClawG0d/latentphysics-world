@@ -25,8 +25,7 @@ N = 16
 def _retract_arm(env):
     """Lift the arm clear of the chest for a pure joint-drive check. At home
     the gripper is staged in the drawer mouth, and a servo-held arm resting
-    there drags the (realistically light hollow) drawer; the arm actually
-    opening it is covered by examples/franka_open_drawer_arm.py."""
+    there drags the (realistically light hollow) drawer."""
     qp, ct = env.scene.qpos(), env.scene.state("ctrl")
     qp[:, 1] = -1.3
     ct[:, 1] = -1.3
