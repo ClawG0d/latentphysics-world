@@ -17,6 +17,7 @@ Layers (all under `latentphysics/`, all our IP — roles in CLAUDE.md):
     envs/         batched task containers + benchmark verifiers
     domain_rand/  domain randomization + sim-to-real calibration
     broadphase/   large-scene BVH broadphase
+    neural/       learned simulation of whitelisted physics (deformables/fluids/aero)
 """
 
 from .version import __version__

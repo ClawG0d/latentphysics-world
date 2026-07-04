@@ -33,6 +33,11 @@ sign-off. If none of the four — reject.
 - Benchmark verifier quantities come from classical solver paths, or are
   cross-checked against one at verification time — never asserted on a
   network's output alone.
+- A learned solver never touches the rigid contact path: it occupies a
+  bounded solver slot with a classical/FEA reference implementation, is
+  off by default, and is accepted only through committed
+  accuracy-vs-reference tests with numeric thresholds on data from
+  seeded, committed reference runs.
 
 ## Module map (roles are exhaustive; extending a role = owner decision)
 
@@ -47,11 +52,18 @@ sign-off. If none of the four — reject.
   this module's role.
 - `broadphase/` — large-scene BVH broadphase (engine performance)
 - `domain_rand/` — domain randomization + sim-to-real calibration (sysid)
-- `latentphysics/neural/` — **DOES NOT EXIST YET.** It is the only place
-  solver learning will ever live. Creating it — and the matching
-  scope-guard carve-out — is a standalone change requiring the owner's
-  explicit sign-off in that PR, never bundled into a feature PR. Until
-  then the guard stays maximally strict.
+- `latentphysics/neural/` — the ONLY place solver learning lives
+  (owner-signed carve-out: standalone change, 2026-07-03). Scope: learned
+  simulation of whitelisted physics only (deformables, fluids,
+  aerodynamics — the same exhaustive whitelist as above). Every learned
+  solver is a drop-in occupant of a declared solver slot — same
+  inputs/outputs as a classical/FEA reference path, switchable off,
+  cross-checked against that reference — and ships with quantitative
+  accuracy-vs-reference acceptance gates (committed tests with numeric
+  thresholds) before any capability claim. Training data comes from
+  committed, seeded reference-solver runs; no adaptive/online data
+  collection. Behavior code stays banned here like everywhere else.
+  Widening this carve-out is an owner decision.
 
 ## Out of scope — do not add
 
@@ -72,8 +84,11 @@ sign-off. If none of the four — reject.
   learned-solver items carry accuracy-vs-reference KPIs like everything
   else.
 - `tests/test_scope_guard.py` bans learning-code signatures across the
-  whole package and examples TODAY, with no carve-outs. Keep it green;
-  any loosening is a standalone owner-approved change.
+  whole package and examples, with exactly ONE owner-signed carve-out:
+  `latentphysics/neural/`. The allowlist is a single hard-coded path, a
+  test asserts it stays that way, and behavior-code signatures remain
+  banned even inside the carve-out. Keep it green; any widening is a
+  standalone owner-approved change.
 - This charter and an equivalent scope guard apply to every LPW
   repository, including the engine fork (`latentphysics-engine`), which
   carries its own copy of this file.
