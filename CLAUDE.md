@@ -80,6 +80,12 @@ sign-off. If none of the four — reject.
 
 - Every gallery clip is a real run from this repo, with a hard assert in
   the script that produced it, and a label linking to the source.
+- A model of a real object is "done" only when its shape AND material match
+  the real thing — a passing physics or pose assert is necessary, never
+  sufficient. Verify procedural and imported assets by rendering them
+  (closed and in every open/articulated state) and looking, plus a
+  mechanical semantic check (cavities present, handles proud and
+  contrasting, seams tight, grounded) — not by joint-travel numbers alone.
 - Every roadmap item is a simulator capability with a physics KPI;
   learned-solver items carry accuracy-vs-reference KPIs like everything
   else.
