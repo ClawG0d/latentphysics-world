@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/media/hero.png" width="820" alt="Latent Physics World — real runs on one consumer GPU"/>
+<img src="docs/media/logo.svg" width="150" alt="Latent Physics World logo"/>
 
 # Latent Physics World
 
