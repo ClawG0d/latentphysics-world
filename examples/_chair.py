@@ -22,6 +22,12 @@ recline, 2x armrest height (friction-locked), headrest height slide
 in group 2 (meshes carry no mass/contact), collision geoms in group 3
 (repo convention); the caster wheels collide as sphere pairs.
 
+Detail layer: suspension-mesh backrest (translucent woven membrane
+stretched on a perimeter frame tube, lumbar bar behind), piped seams on
+the seat and headrest, quilted stitch channels via a procedural texture,
+and soft armrest pads (compliant ellipsoid contact, solref "0.04 0.5" —
+the one deliberately non-default contact in the asset).
+
 Textures come from latentphysics.assets.materials (procedural fabric
 grain), which needs imageio on first run — install the ``demos`` extra.
 """
@@ -84,9 +90,10 @@ def _quat_zy(yaw, pitch):
 
 
 def _geom(gtype, size, pos, *, quat=None, rgba=PLASTIC, material=None,
-          mass=None, collide=False, friction=None, mesh=None):
+          mass=None, collide=False, friction=None, mesh=None, solref=None):
     """Visual (group 2, no contact) or collision (group 3) geom.
-    ``mesh`` swaps the primitive for a lofted mesh asset (visual only)."""
+    ``mesh`` swaps the primitive for a lofted mesh asset (visual only);
+    ``solref`` softens a collision geom's contact (padding, cushions)."""
     if mesh:
         a = [f'type="mesh" mesh="{mesh}"', f'pos="{_q(*pos)}"']
     else:
@@ -100,6 +107,8 @@ def _geom(gtype, size, pos, *, quat=None, rgba=PLASTIC, material=None,
         a.append(f'group="3" mass="{mass:.4f}"')
         if friction:
             a.append(f'friction="{friction}"')
+        if solref:
+            a.append(f'solref="{solref}"')
     else:
         a.append('group="2" contype="0" conaffinity="0" mass="0"')
     return f'<geom {" ".join(a)}/>'
@@ -174,8 +183,10 @@ def _seat():
     g.append(_geom("capsule", (0.007, 0.028), (-0.04, -0.125, 0.380),
                    quat=_quat_zy(math.radians(20), math.radians(90)),
                    rgba=PLASTIC_D))
-    g.append(_geom(None, None, (0, 0, 0), material="mat_fabric_fine", rgba=FABRIC,
+    g.append(_geom(None, None, (0, 0, 0), material="mat_fabric_stitch", rgba=FABRIC,
                    mesh="seat_cushion"))
+    g.append(_geom(None, None, (0, 0, 0), rgba="0.245 0.245 0.26 1",
+                   mesh="seat_piping"))
     g.append(_geom("box", (SEAT_D2, SEAT_W2, 0.040), (0.012, 0, 0.442),
                    mass=4.2, collide=True, rgba=FABRIC))
     return "\n        ".join(g)
@@ -195,8 +206,9 @@ def _armrest(name, s):
               rgba=PLASTIC_D),
         _geom(None, None, (0.035, s * 0.245, 0.640), rgba=PLASTIC_D,
               mesh="arm_pad"),
-        _geom("box", (0.125, 0.042, 0.015), (0.035, s * 0.245, 0.634),
-              mass=0.7, collide=True, rgba=PLASTIC_D),
+        # soft PU pad: ellipsoid + compliant contact (grips squish into it)
+        _geom("ellipsoid", (0.150, 0.048, 0.020), (0.035, s * 0.245, 0.638),
+              mass=0.7, collide=True, rgba=PLASTIC_D, solref="0.04 0.5"),
         _geom("capsule", (0.016, 0.084), (0.02, s * 0.214, 0.482), quat=pq,
               mass=0.3, collide=True, rgba=PLASTIC),
     ]
@@ -210,19 +222,21 @@ def _armrest(name, s):
 
 
 def _backrest():
-    """Sculpted backrest: lofted cushion + rear shell meshes, spine frame,
-    L-bracket to the tilt mechanism, headrest stalk. Collision stays 3
-    coarse slabs following the curve."""
+    """Suspension-mesh backrest: translucent woven membrane stretched on a
+    perimeter frame tube, lumbar bar bowed behind it, spine frame and
+    L-bracket to the tilt mechanism. Collision stays 3 coarse slabs
+    following the curve (slimmed to the membrane plane)."""
     g = []
-    g.append(_geom(None, None, (0, 0, 0), material="mat_fabric_fine", rgba=FABRIC,
-                   mesh="back_cushion"))
-    g.append(_geom(None, None, (0, 0, 0), rgba=PLASTIC, mesh="back_shell"))
-    # collision: 3 coarse slabs following the curve
-    g.append(_geom("box", (0.036, 0.20, 0.095), (BACK_X + 0.045, 0, 0.60),
+    g.append(_geom(None, None, (0, 0, 0), material="mat_mesh_weave",
+                   rgba="0.30 0.30 0.33 0.62", mesh="back_membrane"))
+    g.append(_geom(None, None, (0, 0, 0), rgba=PLASTIC, mesh="back_frame"))
+    g.append(_geom(None, None, (0, 0, 0), rgba=PLASTIC_D, mesh="lumbar_bar"))
+    # collision: 3 coarse slabs following the membrane curve
+    g.append(_geom("box", (0.022, 0.20, 0.095), (BACK_X + 0.045, 0, 0.60),
                    quat=_quat_zy(0, -0.04), mass=1.0, collide=True, rgba=FABRIC))
-    g.append(_geom("box", (0.036, 0.225, 0.10), (BACK_X + 0.032, 0, 0.79),
+    g.append(_geom("box", (0.022, 0.225, 0.10), (BACK_X + 0.001, 0, 0.79),
                    quat=_quat_zy(0, 0.08), mass=1.0, collide=True, rgba=FABRIC))
-    g.append(_geom("box", (0.036, 0.205, 0.10), (BACK_X - 0.03, 0, 0.975),
+    g.append(_geom("box", (0.022, 0.205, 0.10), (BACK_X - 0.026, 0, 0.975),
                    quat=_quat_zy(0, 0.21), mass=1.0, collide=True, rgba=FABRIC))
     # L-bracket to the tilt mechanism: visible side load path seat<->back
     g.append(_geom("box", (0.070, 0.042, 0.017), (BACK_X + 0.062, 0, 0.442),
@@ -255,6 +269,8 @@ def _headrest():
     core_q = _quat_zy(0, 0.14)
     g.append(_geom(None, None, (0, 0, 0), quat=core_q, material="mat_fabric_fine",
                    rgba=FABRIC, mesh="headrest_pillow"))
+    g.append(_geom(None, None, (0, 0, 0), quat=core_q,
+                   rgba="0.245 0.245 0.26 1", mesh="headrest_piping"))
     g.append(_geom("box", (0.040, HEAD_W2 - 0.01, HEAD_H2 - 0.01), (0, 0, 0),
                    quat=core_q, mass=0.55, collide=True, rgba=FABRIC))
     return "\n            ".join(g)
