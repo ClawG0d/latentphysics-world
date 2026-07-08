@@ -174,7 +174,7 @@ def _seat():
     g.append(_geom("capsule", (0.007, 0.028), (-0.04, -0.125, 0.380),
                    quat=_quat_zy(math.radians(20), math.radians(90)),
                    rgba=PLASTIC_D))
-    g.append(_geom(None, None, (0, 0, 0), material="mat_fabric", rgba=FABRIC,
+    g.append(_geom(None, None, (0, 0, 0), material="mat_fabric_fine", rgba=FABRIC,
                    mesh="seat_cushion"))
     g.append(_geom("box", (SEAT_D2, SEAT_W2, 0.040), (0.012, 0, 0.442),
                    mass=4.2, collide=True, rgba=FABRIC))
@@ -214,7 +214,7 @@ def _backrest():
     L-bracket to the tilt mechanism, headrest stalk. Collision stays 3
     coarse slabs following the curve."""
     g = []
-    g.append(_geom(None, None, (0, 0, 0), material="mat_fabric", rgba=FABRIC,
+    g.append(_geom(None, None, (0, 0, 0), material="mat_fabric_fine", rgba=FABRIC,
                    mesh="back_cushion"))
     g.append(_geom(None, None, (0, 0, 0), rgba=PLASTIC, mesh="back_shell"))
     # collision: 3 coarse slabs following the curve
@@ -253,7 +253,7 @@ def _headrest():
     g.append(_geom("box", (0.010, 0.027, 0.046), (-0.018, 0, -HEAD_H2 + 0.016),
                    quat=_quat_zy(0, 0.18), rgba=PLASTIC))
     core_q = _quat_zy(0, 0.14)
-    g.append(_geom(None, None, (0, 0, 0), quat=core_q, material="mat_fabric",
+    g.append(_geom(None, None, (0, 0, 0), quat=core_q, material="mat_fabric_fine",
                    rgba=FABRIC, mesh="headrest_pillow"))
     g.append(_geom("box", (0.040, HEAD_W2 - 0.01, HEAD_H2 - 0.01), (0, 0, 0),
                    quat=core_q, mass=0.55, collide=True, rgba=FABRIC))
@@ -302,7 +302,10 @@ def chair_body(name="chair", pos=(0, 0, 0.004), yaw_deg=0.0):
 
 def chair_assets():
     extra = ('<material name="mat_metal" specular="0.9" shininess="0.8" '
-             'reflectance="0.35"/>')
+             'reflectance="0.35"/>'
+             # lofted meshes carry [0,1] UVs: retile the fabric grain finely
+             '<material name="mat_fabric_fine" texture="grain_fabric" '
+             'texrepeat="1 1" reflectance="0.05"/>')
     return material_assets() + mesh_assets() + extra
 
 

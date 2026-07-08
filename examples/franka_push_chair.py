@@ -130,8 +130,11 @@ class PushRun:
         return self.d.qpos[self.chair_qadr:self.chair_qadr + 3].copy()
 
     def chair_tilt_deg(self):
-        q = self.d.qpos[self.chair_qadr + 3:self.chair_qadr + 7]
-        return np.degrees(2 * np.arccos(min(1.0, abs(q[0]))))
+        """Angle of the chair's z-axis off vertical (yaw doesn't count —
+        rolling slightly askew is fine; leaning is not)."""
+        w, x, y, z = self.d.qpos[self.chair_qadr + 3:self.chair_qadr + 7]
+        up_z = 1.0 - 2.0 * (x * x + y * y)          # R[2,2]
+        return np.degrees(np.arccos(np.clip(up_z, -1.0, 1.0)))
 
     def _servo_arm(self, target_pos, seed):
         q = solve_ik(self.m, self._ikd, self.site, target_pos, PUSH_QUAT, seed)

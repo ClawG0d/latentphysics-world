@@ -25,15 +25,17 @@ def _superellipse(K, a, b, p):
                      b * np.sign(s) * np.abs(s) ** (2 / p)], axis=1)
 
 
-def _loft(rings):
+def _loft(rings, uv=(1.0, 1.0)):
     """Watertight loft through same-K rings -> (V, F, VT). Rings must be
-    ordered along the sweep; caps are centroid fans."""
+    ordered along the sweep; caps are centroid fans. ``uv`` sets the
+    texture repeat count around/along the sweep (MuJoCo ignores material
+    texrepeat for meshes, so tiling lives in the texcoords)."""
     rings = [np.asarray(r, dtype=float) for r in rings]
     K = rings[0].shape[0]
     n = len(rings)
     V = np.concatenate(rings, axis=0)
-    VT = np.stack([np.tile(np.linspace(0, 1, K, endpoint=False), n),
-                   np.repeat(np.linspace(0, 1, n), K)], axis=1)
+    VT = np.stack([np.tile(np.linspace(0, uv[0], K, endpoint=False), n),
+                   np.repeat(np.linspace(0, uv[1], n), K)], axis=1)
     F = []
     for i in range(n - 1):
         for k in range(K):
@@ -96,7 +98,7 @@ def back_cushion(back_x, z0, z1, K=40):
         x = back_x + x_off + r[:, 0] + curl
         return np.stack([x, r[:, 1], np.full(K, z)], axis=1)
 
-    return _loft(_shrink_caps(ring, ts, pad=0.012))
+    return _loft(_shrink_caps(ring, ts, pad=0.012), uv=(7.0, 8.0))
 
 
 def back_shell(back_x, z0, z1, K=36):
@@ -135,7 +137,7 @@ def seat_cushion(K=40):
                        * np.sin(np.pi * min(max(t, 0.08), 0.92)))
         return np.stack([np.full(K, x), y, 0.442 + z], axis=1)
 
-    return _loft(_shrink_caps(ring, ts, pad=0.010))
+    return _loft(_shrink_caps(ring, ts, pad=0.010), uv=(9.0, 7.0))
 
 
 def headrest_pillow(K=36):
@@ -149,7 +151,7 @@ def headrest_pillow(K=36):
         r = _superellipse(K, 0.042 * env * scale + 1e-4, 0.090 * env * scale + 1e-4, 2.6)
         return np.stack([r[:, 0], np.full(K, y), r[:, 1]], axis=1)
 
-    return _loft(_shrink_caps(ring, ts, shrink=(1.0, 0.7, 0.3), pad=0.004))
+    return _loft(_shrink_caps(ring, ts, shrink=(1.0, 0.7, 0.3), pad=0.004), uv=(4.0, 5.0))
 
 
 def arm_pad(K=28):
